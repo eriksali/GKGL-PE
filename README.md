@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 This repository provides the code for our research project "GKGL-PE: a GNN-based Knowledge Graph Learning framework for Pathway Embedding".
 
 prediction/
@@ -48,3 +49,7 @@ The code directory contains the following scripts:
 python embedding/embedding.py --out_feats 128 --num_layers 4 --num_heads 2 --batch_size 1 --lr 0.01 --num_epochs 1000
 
 python prediction/main.py --out-feats 128 --num-heads 4 --num-layers 6 --lr 0.02 --input-size 2 --hidden-size 16 --feat-drop 0.1 --attn-drop 0.1 --epochs 200
+=======
+# GKGL-PE
+GNN
+>>>>>>> 893624fa9e23c9fe02596440b878ad3fb9a72704
