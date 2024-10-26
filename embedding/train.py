@@ -74,9 +74,9 @@ def train(hyperparams=None, data_path='embedding/data/emb', plot=True):
     neo4j_user = "neo4j"
     neo4j_password = "0vZCoYqO6E9YkZRSFsdKPwHcziXu1-b0h8O9edAzWjM"
 
-    reactome_file_path = "data/NCBI2Reactome.csv"
-    output_file_path = "data/NCBI_pathway_map.csv"
-    gene_names_file_path = "data/gene_names.csv"
+    reactome_file_path = "embedding/data/NCBI2Reactome.csv"
+    output_file_path = "embedding/data/NCBI_pathway_map.csv"
+    gene_names_file_path = "embedding/data/gene_names.csv"
     pathway_map = create_pathway_map(reactome_file_path, output_file_path)
     gene_id_to_name_mapping, gene_id_to_symbol_mapping = read_gene_names(gene_names_file_path)
     

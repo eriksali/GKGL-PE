@@ -92,25 +92,6 @@ class Network:
             significances[stid] = 'not-found' if self.weights is None else self.weights[stid]['significance']
         return stids, names, weights, significances
 
-    def set_name_to_id(self):
-        name_to_id = {}
-        for id, info in self.pathway_info.items():
-            name_to_id[info.name] = id
-        return name_to_id
-
-    def save_name_to_id(self):
-        file_path = 'embedding/data/emb/info/name_to_id.txt'
-        with open(file_path, 'w') as f:
-            for name, id in self.name_to_id.items():
-                f.write(f"{name}: {id}\n")
-
-    def save_sorted_stids(self):
-        file_path = 'embedding/data/emb/info/sorted_stids.txt'
-        stids = sorted(self.pathway_info.keys())
-        with open(file_path, 'w') as f:
-            for stid in stids:
-                f.write(f"{stid}\n")
-
     def to_networkx(self, type='json'):
         graph_nx = nx.DiGraph()
         graph = self.json_adjacency if type == 'json' else self.txt_adjacency
@@ -134,3 +115,22 @@ class Network:
                 self.graph_nx.nodes[stid]['weight'] = 0.0
             except KeyError:
                 continue
+
+    def save_name_to_id(self):
+        file_path = 'embedding/data/emb/info/name_to_id.txt'
+        with open(file_path, 'w') as f:
+            for name, id in self.name_to_id.items():
+                f.write(f"{name}: {id}\n")
+
+    def save_sorted_stids(self):
+        file_path = 'embedding/data/emb/info/sorted_stids.txt'
+        stids = sorted(self.pathway_info.keys())
+        with open(file_path, 'w') as f:
+            for stid in stids:
+                f.write(f"{stid}\n")
+
+    def set_name_to_id(self):
+        name_to_id = {}
+        for id, info in self.pathway_info.items():
+            name_to_id[info.name] = id
+        return name_to_id
