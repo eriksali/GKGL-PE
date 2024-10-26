@@ -1,17 +1,7 @@
 import os
 import pickle
-import urllib.request
-import json
-from collections import defaultdict, namedtuple
-from datetime import datetime
-import networkx as nx
 import pandas as pd
-from py2neo import Graph, Node, Relationship
 import torch
-from torch import nn
-from torch.utils.data import DataLoader
-from torch.optim import Adam
-from tqdm import tqdm
 import marker
 import network
 import dataset
@@ -107,6 +97,7 @@ def create_embedding_with_markers(p_value=0.05, save=True, data_dir='embedding/d
     
     # Split the symbols into train and test sets
     emb_train, emb_test = train_test_split(symbols, test_size=0.3, random_state=42)
+    ##print('emb_train=========================\n', emb_train)
 
     # Create networks for train and test sets
     graph_train = create_network_from_markers(emb_train, p_value, 'emb_train')
@@ -119,20 +110,40 @@ def create_embedding_with_markers(p_value=0.05, save=True, data_dir='embedding/d
 
     return graph_train, graph_test
 
+def create_embedding_with_markers_ori(p_value=0.05, save=True, data_dir='embedding/data/emb'):
+    emb_train = ['MS4A1', 'CD8A', 'CD4', 'KRT19', 'PCNA', 'CD68', 'PDCD1', 'PTRPC', 'KRT8', 'HER2', 'FOXP3', 'KRT5', 'H3F3A', 'H3F3B', 'RPS6', 'ESR1', 'CD44', 'KRT17', 'PDPN', 'PECAM1', 'GZMB', 'VIM', 'pAb', 'RB1', 'CD3', 'ACTA2', 'PARP1', 'H2AFX', 'CDH1', 'KRT7', 'KRT14', 'COL4A1', 'LMNA', 'H3K27', 'CD274', 'MKI67', 'PGR', 'LMNB1', 'H3K4', 'LMNB2', 'COL1A1', 'CD34', 'AR', 'HIF1A', 'FOXP3']
+    emb_test = ['AKT1', 'BMP2', 'BMP4', 'MAPK1', 'MAPK3', 'BRD4', 'CASP3', 'NCAM1', 'MTOR']
+    
+    '''
+    markers = 'MS4A1, CD8A, CD4, KRT19, PCNA, CD68, PDCD1, PTRPC, KRT8, HER2, FOXP3, KRT5, H3F3A, H3F3B, RPS6, ESR1, CD44, KRT17, PDPN, PECAM1, GZMB, VIM, pAb, RB1, CD3, ACTA2, PARP1, H2AFX, CDH1, KRT7, KRT14, COL4A1, LMNA, H3K27, CD274, MKI67, PGR, LMNB1, H3K4, LMNB2, COL1A1, CD34, AR, HIF1A, FOXP3, AKT1, BMP2, BMP4, MAPK1, MAPK3, BRD4, CASP3, NCAM1, MTOR'
+    result = analysis.identifiers(ids=markers)
+    token = result['summary']['token']
+    token
+    '''
+    
+    graph_train = create_network_from_markers(emb_train, p_value, 'emb_train')
+    graph_test = create_network_from_markers(emb_test, p_value, 'emb_test')
+
+    if save:
+        save_dir = os.path.join(data_dir, 'raw')
+        save_to_disk(graph_train, save_dir)
+        save_to_disk(graph_test, save_dir)
+
+    return graph_train, graph_test
+
 def create_embeddings(load_model=True, save=True, data_dir='embedding/data/emb', hyperparams=None, plot=True):
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     data = dataset.PathwayDataset(data_dir)
     emb_dir = os.path.abspath(os.path.join(data_dir, 'embeddings'))
-    os.makedirs(emb_dir, exist_ok=True)
+    if not os.path.isdir(emb_dir):
+        os.mkdir(emb_dir)
 
-    ##in_feats = hyperparams['in_feats']
+    in_feats = hyperparams['in_feats']
     out_feats = hyperparams['out_feats']
     num_layers = hyperparams['num_layers']
-    num_heads = hyperparams.get('num_heads', 2)  # Default to 2 heads if not specified
+    num_heads = hyperparams['num_heads']
 
-    net = model.GATModel(out_feats=out_feats, num_heads=num_heads, num_layers=num_layers).to(device)
+    net = model.GATModel(in_feats=in_feats, out_feats=out_feats, num_layers=num_layers, num_heads=num_heads).to(device)
 
     if load_model:
         model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
@@ -143,13 +154,13 @@ def create_embeddings(load_model=True, save=True, data_dir='embedding/data/emb',
 
     embedding_dict = {}
     
-    for idx in tqdm(range(len(data))):
+    for idx in range(len(data)):
         graph, name = data[idx]
         graph = graph.to(device)  # Move graph to the same device as net
         
         with torch.no_grad():
             embedding = net(graph)
-        embedding_dict[name] = embedding.cpu()
+        embedding_dict[name] = embedding
         if save:
             emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
             torch.save(embedding.cpu(), emb_path)

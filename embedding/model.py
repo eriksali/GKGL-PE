@@ -1,3 +1,10 @@
+import numpy as np
+import torch
+import torch.nn as nn
+import dgl
+##from dgl.nn import GATConv
+
+
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -7,7 +14,6 @@ from dgl.nn.pytorch import edge_softmax
 import dgl.function as fn
 from dgl.base import DGLError
 from typing import Callable, Optional, Tuple, Union
-##from dgl.nn import GATConv
 
 class GATConv(nn.Module):
     def __init__(self,
@@ -120,62 +126,44 @@ class GATConv(nn.Module):
                 rst = self.activation(rst)
 
             return rst
-
+  
 class GATModel(nn.Module):
-    def __init__(self, out_feats, num_heads=2, num_layers=1, do_train=False):
+    def __init__(self, in_feats, out_feats, num_heads=1, feat_drop=0.0, attn_drop=0.0, negative_slope=0.2, residual=False, activation=None, allow_zero_in_degree=False, bias=True, num_layers=1, do_train=False):
         super(GATModel, self).__init__()
         self.do_train = do_train
-        
-        # Linear layer to transform input weights to `out_feats` size
-        self.linear = nn.Linear(1, out_feats)
-
-        # Define the first GAT layer with `num_heads` attention heads
-        self.gat_0 = GATConv(out_feats, out_feats // num_heads, num_heads=num_heads, allow_zero_in_degree=True)
+        self.linear = nn.Linear(1, in_feats)
+        self.conv_0 = GATConv(in_feats=in_feats, out_feats=out_feats, num_heads=num_heads, feat_drop=feat_drop, attn_drop=attn_drop, negative_slope=negative_slope, residual=residual, activation=activation, allow_zero_in_degree=allow_zero_in_degree, bias=bias)
         self.relu = nn.LeakyReLU()
-
-        # Define additional GAT layers
-        self.layers = nn.ModuleList([
-            GATConv(out_feats, out_feats // num_heads, num_heads=num_heads, allow_zero_in_degree=True)
-            for _ in range(num_layers - 1)
-        ])
-
-        # Prediction layer to map from `out_feats` back to 1-dimensional output
-        self.predict = nn.Linear(out_feats, 1)
+        self.layers = nn.ModuleList([GATConv(in_feats=out_feats * num_heads, out_feats=out_feats, num_heads=num_heads, feat_drop=feat_drop, attn_drop=attn_drop, negative_slope=negative_slope, residual=residual, activation=activation, allow_zero_in_degree=allow_zero_in_degree, bias=bias)
+                                     for _ in range(num_layers - 1)])
+        self.predict = nn.Linear(out_feats * num_heads, 1)
+        
 
     def forward(self, graph):
-        # Get the node weights and transform them to the latent dimension
         weights = graph.ndata['weight'].unsqueeze(-1)
         features = self.linear(weights)
-
-        # Ensure the graph has self-loops
         graph = dgl.add_self_loop(graph)
-        
-        # Apply the first GAT layer
-        embedding = self.gat_0(graph, features).flatten(1)  # Flatten the output from (N, num_heads, out_feats) to (N, out_feats)
-        
-        # Apply the remaining GAT layers
-        for gat_layer in self.layers:
+        embedding = self.conv_0(graph, features)
+
+        for conv in self.layers:
             embedding = self.relu(embedding)
-            embedding = gat_layer(graph, embedding).flatten(1)
+            embedding = conv(graph, embedding)
         
-        # If not in training mode, return the detached embeddings
         if not self.do_train:
             return embedding.detach()
-
-        # For training, apply the prediction layer
-        logits = self.predict(embedding)
+        
+        logits = self.predict(embedding.mean(dim=1)).squeeze(-1)  # Adjust the shape to match the target
         return logits
 
-    
     def get_node_embeddings(self, graph):
-        """Generate embeddings for nodes in the graph."""
         weights = graph.ndata['weight'].unsqueeze(-1)
         features = self.linear(weights)
         graph = dgl.add_self_loop(graph)
-        embedding = self.gat_0(graph, features).flatten(1)
+        embedding = self.conv_0(graph, features)
 
-        for gat_layer in self.layers:
+        for conv in self.layers:
             embedding = self.relu(embedding)
-            embedding = gat_layer(graph, embedding).flatten(1)
+            embedding = conv(graph, embedding).flatten(1)
 
+        ##embedding = np.vstack(embedding).detach().numpy()
         return embedding
